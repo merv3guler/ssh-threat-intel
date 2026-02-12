@@ -9,11 +9,11 @@ LOG_DIR = 'logs'
 EXPORT_FILE = 'public/data.json'
 ABUSE_API_URL = 'https://api.abuseipdb.com/api/v2/check'
 ABUSE_API_KEY = os.environ.get('ABUSEIPDB_KEY')
+API_LIMIT = 15  # <--- GÜNCELLEME: Limiti buradan yönetebilirsin (Max 15)
 
 def parse_auth_logs():
     """Scans log directory and extracts failed login attempts."""
     ip_counts = {}
-    # Regex to capture IP from standard auth.log format
     pattern = re.compile(r'Failed password for .* from (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})')
 
     if not os.path.exists(LOG_DIR):
@@ -49,6 +49,9 @@ def get_ip_reputation(ip):
         response = requests.get(ABUSE_API_URL, headers=headers, params=params)
         if response.status_code == 200:
             return response.json()['data']
+        elif response.status_code == 429:
+            print(f"API Rate Limit Exceeded for {ip}")
+            return None
     except Exception as e:
         print(f"API request failed for {ip}: {e}")
     
@@ -60,8 +63,8 @@ def main():
     # 1. Parse Logs
     attackers = parse_auth_logs()
     
-    # 2. Sort and filter top attackers (Top 15 to save API quota)
-    top_attackers = sorted(attackers.items(), key=lambda x: x[1], reverse=True)[:15]
+    # 2. Sort and filter top attackers using configuration limit
+    top_attackers = sorted(attackers.items(), key=lambda x: x[1], reverse=True)[:API_LIMIT]
     
     enriched_data = []
     
@@ -70,6 +73,7 @@ def main():
         print(f"Analyzing {ip} ({count} attempts)...")
         rep = get_ip_reputation(ip)
         
+        # If API fails or limit hit, use default secure fallback
         entry = {
             "ip": ip,
             "count": count,
