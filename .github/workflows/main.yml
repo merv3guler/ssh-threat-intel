@@ -1,0 +1,42 @@
+name: Sentinel Intel Update
+
+on:
+  push:
+    paths:
+      - 'logs/**'     # Log yüklenince çalış
+      - 'core/**'     # Kod değişince çalış
+      - 'index.html'  # Arayüz değişince çalış
+  schedule:
+    - cron: '0 */6 * * *' # Her 6 saatte bir çalış
+  workflow_dispatch:      # Manuel tetikleme butonu
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Sentinel Engine
+        env:
+          ABUSEIPDB_KEY: ${{ secrets.ABUSEIPDB_KEY }}
+        run: python core/analyzer.py
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./
+          keep_files: true
+          exclude_assets: '.github,core,logs,requirements.txt'
