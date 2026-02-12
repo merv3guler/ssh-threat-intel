@@ -5,76 +5,145 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sentinel | Threat Intelligence</title>
     <style>
-        :root { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --accent: #3b82f6; --danger: #ef4444; }
-        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; line-height: 1.6; }
+        :root { 
+            --bg: #0f172a; 
+            --card: #1e293b; 
+            --text: #f8fafc; 
+            --border: #334155;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; line-height: 1.6; }
         .container { max-width: 800px; margin: 0 auto; }
-        header { border-bottom: 1px solid #334155; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
-        h1 { margin: 0; font-size: 1.5rem; letter-spacing: -0.5px; }
-        .badge { background: var(--accent); color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+        
+        /* Header */
+        header { border-bottom: 1px solid var(--border); padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
+        h1 { margin: 0; font-size: 1.5rem; display: flex; align-items: center; gap: 10px; }
+        .badge { background: #3b82f6; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; text-transform: uppercase; }
+        
+        /* Grid & Cards */
         .grid { display: grid; gap: 15px; }
-        .card { background: var(--card); padding: 20px; border-radius: 8px; border: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; transition: transform 0.2s; }
-        .card:hover { transform: translateY(-2px); border-color: var(--accent); }
-        .ip { font-family: monospace; font-size: 1.1rem; font-weight: bold; color: var(--accent); }
-        .meta { font-size: 0.9rem; color: #94a3b8; }
-        .score { font-size: 1.2rem; font-weight: bold; color: var(--danger); }
-        footer { margin-top: 50px; text-align: center; color: #64748b; font-size: 0.9rem; }
-        a { color: var(--accent); text-decoration: none; }
+        .card { background: var(--card); padding: 20px; border-radius: 10px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; transition: transform 0.2s, box-shadow 0.2s; }
+        .card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3); }
+        
+        /* Left Side: IP & Country */
+        .ip-group { display: flex; flex-direction: column; gap: 4px; }
+        .ip { font-family: 'Monaco', 'Consolas', monospace; font-size: 1.2rem; font-weight: 700; color: #60a5fa; letter-spacing: 0.5px; }
+        .country-row { display: flex; align-items: center; gap: 8px; font-size: 0.95rem; color: #cbd5e1; }
+        .flag { width: 24px; height: 18px; border-radius: 2px; object-fit: cover; box-shadow: 0 0 2px rgba(255,255,255,0.2); }
+        
+        /* Right Side: Score & Stats */
+        .stats-group { text-align: right; }
+        .score-badge { font-size: 1.2rem; font-weight: 800; padding: 5px 12px; border-radius: 8px; display: inline-block; min-width: 60px; text-align: center; }
+        .meta { font-size: 0.85rem; color: #94a3b8; margin-top: 4px; }
+        
+        /* Footer */
+        footer { margin-top: 50px; text-align: center; color: #64748b; font-size: 0.9rem; border-top: 1px solid var(--border); padding-top: 20px; }
+        a { color: #60a5fa; text-decoration: none; transition: color 0.2s; }
+        a:hover { color: #93c5fd; }
+
+        /* Loading State */
+        .loading { text-align: center; padding: 40px; color: #64748b; font-style: italic; }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
             <div>
-                <h1>🛡️ Sentinel <span class="badge">LIVE</span></h1>
-                <small>SSH Threat Intelligence Feed</small>
+                <h1>🛡️ Sentinel <span class="badge">Live Feed</span></h1>
+                <small style="color: #94a3b8;">Real-time SSH Brute-Force Intelligence</small>
             </div>
-            <div id="status" class="meta">Loading...</div>
+            <div id="status" class="meta" style="text-align: right;">System Ready</div>
         </header>
 
         <div id="feed" class="grid">
-            </div>
+            <div class="loading">Loading threat intelligence data...</div>
+        </div>
 
         <footer>
             <p>Powered by <strong>GitHub Actions</strong> & <strong>AbuseIPDB</strong></p>
-            <p><a href="https://github.com/merv3guler/ssh-threat-intel">View Source & Contribute</a></p>
+            <p><a href="https://github.com/merv3guler/ssh-threat-intel" target="_blank">View Source & Contribute</a></p>
         </footer>
     </div>
 
     <script>
-        async function loadFeed() {
+        // Ülke kodunu isme çeviren fonksiyon (Örn: TR -> Turkey)
+        const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+
+        function getCountryName(code) {
             try {
-                const res = await fetch('public/data.json');
-                if (!res.ok) throw new Error("Feed not found");
+                if (code === 'UNK' || !code) return 'Unknown Location';
+                return regionNames.of(code);
+            } catch (e) {
+                return code;
+            }
+        }
+
+        // Skora göre renk belirleyen fonksiyon
+        function getRiskColor(score) {
+            if (score >= 75) return { color: '#ef4444', bg: 'rgba(239, 68, 68, 0.15)', label: 'CRITICAL' }; // Kırmızı
+            if (score >= 40) return { color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)', label: 'SUSPICIOUS' }; // Turuncu
+            return { color: '#10b981', bg: 'rgba(16, 185, 129, 0.15)', label: 'LOW RISK' }; // Yeşil
+        }
+
+        async function loadFeed() {
+            const feed = document.getElementById('feed');
+            
+            try {
+                // Cache önlemek için timestamp ekliyoruz
+                const res = await fetch(`public/data.json?t=${new Date().getTime()}`);
+                if (!res.ok) throw new Error("Data not found");
                 const data = await res.json();
                 
-                const feed = document.getElementById('feed');
                 feed.innerHTML = '';
-                document.getElementById('status').innerText = `Updated: ${new Date().toLocaleTimeString()}`;
+                document.getElementById('status').innerHTML = `Last Update:<br>${new Date().toLocaleString()}`;
 
                 if (data.length === 0) {
-                    feed.innerHTML = '<div class="card">No active threats detected. System secure.</div>';
+                    feed.innerHTML = '<div class="card" style="justify-content:center; color:#10b981;">No active threats detected. System secure. 🟢</div>';
                     return;
                 }
 
                 data.forEach(item => {
+                    // Risk rengini hesapla
+                    const riskStyle = getRiskColor(item.score);
+                    
+                    // Bayrak URL'si (flagcdn kullanıyoruz)
+                    const flagUrl = item.country && item.country !== 'UNK' 
+                        ? `https://flagcdn.com/w40/${item.country.toLowerCase()}.png`
+                        : 'https://via.placeholder.com/40x30/333/999?text=?'; // Bilinmeyen ülke ikonu
+
+                    const countryName = getCountryName(item.country);
+
                     const el = document.createElement('div');
                     el.className = 'card';
                     el.innerHTML = `
-                        <div>
+                        <div class="ip-group">
                             <div class="ip">${item.ip}</div>
-                            <div class="meta">${item.country} • ${item.isp}</div>
+                            <div class="country-row">
+                                <img src="${flagUrl}" class="flag" alt="${item.country}" onerror="this.style.display='none'">
+                                <span>${countryName}</span>
+                            </div>
+                            <div class="meta">${item.isp}</div>
                         </div>
-                        <div style="text-align:right">
-                            <div class="score">${item.score}% Risk</div>
-                            <div class="meta">${item.count} Attempts</div>
+                        
+                        <div class="stats-group">
+                            <div class="score-badge" style="color: ${riskStyle.color}; background: ${riskStyle.bg}; border: 1px solid ${riskStyle.color}">
+                                %${item.score}
+                            </div>
+                            <div class="meta" style="color: ${riskStyle.color}; font-weight:bold; font-size:0.7rem; margin-top:5px;">
+                                ${riskStyle.label}
+                            </div>
+                            <div class="meta" style="margin-top:8px;">${item.count} Attempts</div>
                         </div>
                     `;
                     feed.appendChild(el);
                 });
             } catch (e) {
-                document.getElementById('feed').innerHTML = '<div class="card">Waiting for first analysis run...</div>';
+                console.error(e);
+                feed.innerHTML = `<div class="card" style="justify-content:center; border-color:#ef4444; color:#ef4444;">
+                    ⚠️ Error loading feed. Check console or wait for next scan.
+                </div>`;
             }
         }
+
         loadFeed();
     </script>
 </body>
