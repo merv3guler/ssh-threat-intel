@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentinel | Threat Intelligence</title>
+    <style>
+        :root { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --accent: #3b82f6; --danger: #ef4444; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; line-height: 1.6; }
+        .container { max-width: 800px; margin: 0 auto; }
+        header { border-bottom: 1px solid #334155; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
+        h1 { margin: 0; font-size: 1.5rem; letter-spacing: -0.5px; }
+        .badge { background: var(--accent); color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+        .grid { display: grid; gap: 15px; }
+        .card { background: var(--card); padding: 20px; border-radius: 8px; border: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; transition: transform 0.2s; }
+        .card:hover { transform: translateY(-2px); border-color: var(--accent); }
+        .ip { font-family: monospace; font-size: 1.1rem; font-weight: bold; color: var(--accent); }
+        .meta { font-size: 0.9rem; color: #94a3b8; }
+        .score { font-size: 1.2rem; font-weight: bold; color: var(--danger); }
+        footer { margin-top: 50px; text-align: center; color: #64748b; font-size: 0.9rem; }
+        a { color: var(--accent); text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>🛡️ Sentinel <span class="badge">LIVE</span></h1>
+                <small>SSH Threat Intelligence Feed</small>
+            </div>
+            <div id="status" class="meta">Loading...</div>
+        </header>
+
+        <div id="feed" class="grid">
+            </div>
+
+        <footer>
+            <p>Powered by <strong>GitHub Actions</strong> & <strong>AbuseIPDB</strong></p>
+            <p><a href="https://github.com/merv3guler/ssh-threat-intel">View Source & Contribute</a></p>
+        </footer>
+    </div>
+
+    <script>
+        async function loadFeed() {
+            try {
+                const res = await fetch('public/data.json');
+                if (!res.ok) throw new Error("Feed not found");
+                const data = await res.json();
+                
+                const feed = document.getElementById('feed');
+                feed.innerHTML = '';
+                document.getElementById('status').innerText = `Updated: ${new Date().toLocaleTimeString()}`;
+
+                if (data.length === 0) {
+                    feed.innerHTML = '<div class="card">No active threats detected. System secure.</div>';
+                    return;
+                }
+
+                data.forEach(item => {
+                    const el = document.createElement('div');
+                    el.className = 'card';
+                    el.innerHTML = `
+                        <div>
+                            <div class="ip">${item.ip}</div>
+                            <div class="meta">${item.country} • ${item.isp}</div>
+                        </div>
+                        <div style="text-align:right">
+                            <div class="score">${item.score}% Risk</div>
+                            <div class="meta">${item.count} Attempts</div>
+                        </div>
+                    `;
+                    feed.appendChild(el);
+                });
+            } catch (e) {
+                document.getElementById('feed').innerHTML = '<div class="card">Waiting for first analysis run...</div>';
+            }
+        }
+        loadFeed();
+    </script>
+</body>
+</html>

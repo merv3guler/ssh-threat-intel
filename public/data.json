@@ -1,0 +1,18 @@
+[
+  {
+    "ip": "192.168.1.1",
+    "count": 2,
+    "updated": "2026-02-12T15:57:54.272465",
+    "score": 0,
+    "country": null,
+    "isp": null
+  },
+  {
+    "ip": "10.0.0.5",
+    "count": 1,
+    "updated": "2026-02-12T15:57:54.456152",
+    "score": 0,
+    "country": null,
+    "isp": "Private IP Address LAN"
+  }
+]
